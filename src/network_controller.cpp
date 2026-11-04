@@ -13,7 +13,7 @@
 
 namespace {
 WiFiSSLClient gWifiClient;
-String        gLastSongTitle = ""; // Caching-Variable zur Vermeidung von Display-Flackern
+String        gLastSongTitle = ""; // Cached track title to prevent redundant TFT redraws
 
 void printWifiStatus() {
     Serial.print("WiFi status: ");
@@ -263,28 +263,28 @@ void fetchVirtualRDS() {
     }
 
     const bool isSong = doc["results"]["34"][0]["song"] | false;
-    const char *artist = doc["results"]["34"][0]["artistName"] | "Unbekannter Kuenstler";
-    const char *song = doc["results"]["34"][0]["name"] | "Unbekannter Song";
+    const char *artist = doc["results"]["34"][0]["artistName"] | "Unknown Artist";
+    const char *song = doc["results"]["34"][0]["name"] | "Unknown Track";
 
     if (isSong) {
         const String currentSong = String(song);
-        // Display-Aktualisierung nur bei echtem Songwechsel (verhindert Flackern)
+        // Refresh the TFT viewport only when the track actually changes
         if (currentSong != gLastSongTitle) {
             gLastSongTitle = currentSong;
 
-            Serial.println("\n>>> NOW PLAYING auf bigFM <<<");
+            Serial.println("\n>>> NOW PLAYING on bigFM <<<");
             Serial.print("Artist: ");
             Serial.println(artist);
             Serial.print("Song:   ");
             Serial.println(song);
-            Serial.println("-----------------------------\n");
+            Serial.println("----------------------------\n");
 
             renderNowPlaying(artist, song);
         }
     } else {
         if (gLastSongTitle != "__MODERATION__") {
             gLastSongTitle = "__MODERATION__";
-            renderNowPlaying("bigFM", "Werbung / Moderation");
+            renderNowPlaying("bigFM", "Commercial / Talk Show");
         }
     }
 

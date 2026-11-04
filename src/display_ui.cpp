@@ -7,7 +7,7 @@
 #include <Arduino_GFX_Library.h>
 
 namespace {
-// 8-Bit Software Parallel Bus und ILI9341 Display-Instanz (gekapselt im UI-Modul)
+// 8-bit software parallel bus and ILI9341 display instance encapsulated inside the UI module
 Arduino_DataBus *gDataBus = nullptr;
 Arduino_GFX     *gTft     = nullptr;
 
@@ -29,11 +29,11 @@ bool initDisplayUi(float initialFreqMhz) {
     ensureDisplayAllocated();
 
     if (!gTft->begin()) {
-        Serial.println("FEHLER: TFT Init fehlgeschlagen!");
+        Serial.println("ERROR: TFT initialization failed!");
         return false;
     }
 
-    Serial.println("TFT (ILI9341) erfolgreich initialisiert.");
+    Serial.println("TFT (ILI9341) initialized successfully.");
     gTft->setRotation(1); // 320x240 Landscape
     drawStaticUiFrame(initialFreqMhz);
     return true;
@@ -48,11 +48,11 @@ void drawStaticUiFrame(float frequencyMhz) {
 
     gTft->fillScreen(kColorBlack);
 
-    // 1. Header-Banner (y = 0 .. kHeaderHeight - 1)
+    // 1. Header Banner (y = 0 .. kHeaderHeight - 1)
     gTft->fillRect(0, 0, width, kHeaderHeight, kColorHeader);
     gTft->drawRect(0, 0, width, kHeaderHeight, kColorWhite);
 
-    // 2. Hauptrahmen & horizontale Trennlinie zwischen RDS-Bereich und Uhren-Footer
+    // 2. Main Body Frame & Horizontal Divider separating Virtual RDS and Clock Footer
     gTft->drawRect(0, kHeaderHeight, width, height - kHeaderHeight, kColorWhite);
     gTft->drawFastHLine(1, kDividerY, width - 2, kColorWhite);
 
@@ -93,7 +93,7 @@ void renderNowPlaying(const char *artist, const char *song) {
     const int16_t textX = kUiPadding;
     const int16_t textY = kHeaderHeight + kUiPadding;
     const int16_t textW = width - (kUiPadding * 2);
-    // Strikt oberhalb der Trennlinie (kDividerY) begrenzen, damit die Uhrzeit nie überschrieben wird!
+    // Strictly clip above the horizontal divider (kDividerY) so the clock footer is never overwritten
     const int16_t textH = kDividerY - textY - 2;
 
     gTft->fillRect(textX, textY, textW, textH, kColorBlack);
@@ -115,16 +115,16 @@ void renderClock(const char *timeStr, const char *alarmStr) {
     const int16_t textX = kUiPadding + 2;
     const int16_t textY = kDividerY + 20;
 
-    // Flackerfreies Rendering durch opake Hintergrundfarbe (kein fillRect im Sekundentakt nötig)
+    // Flicker-free rendering using opaque background color (no 1 Hz fillRect needed)
     gTft->setTextWrap(false);
     gTft->setTextColor(kColorWhite, kColorBlack);
 
-    // Links: Aktuelle Uhrzeit HH:MM:SS (Textgröße 3 -> 8 Zeichen * 18px = 144px Breite)
+    // Left: Current time HH:MM:SS (textSize 3 -> 8 chars * 18px = 144px width)
     gTft->setTextSize(3);
     gTft->setCursor(textX, textY);
     gTft->print(timeStr != nullptr ? timeStr : "00:00:00");
 
-    // Rechts: Alarmstatus mit fester Breite gepaddet, um Restzeichen sauber zu überschreiben
+    // Right: Alarm status padded to fixed width to overwrite any trailing characters cleanly
     char alarmField[16];
     const char *effectiveAlarm = (alarmStr != nullptr && alarmStr[0] != '\0') ? alarmStr : "--:--";
     snprintf(alarmField, sizeof(alarmField), "Alarm:%-6s", effectiveAlarm);

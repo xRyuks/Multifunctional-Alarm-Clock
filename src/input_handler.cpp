@@ -82,7 +82,7 @@ void executeSerialCommand(
     } else if (input == "ALARM OFF") {
         alarmController.disableAlarm(radio);
         renderHeaderStatus(radio.getFrequency(), radio.isMuted());
-        Serial.println("Alarm deaktiviert (Radio stummgeschaltet).");
+        Serial.println("Alarm disabled (FM radio muted).");
     } else if (input.startsWith("ALARM ")) {
         const String timeArg = input.substring(6);
         int h = -1;
@@ -92,24 +92,24 @@ void executeSerialCommand(
              parseTimeComponents(timeArg, h, m, s) &&
              alarmController.setAlarm(h, m) ) {
             char msgBuf[64];
-            snprintf(msgBuf, sizeof(msgBuf), "Alarm gesetzt auf %02d:%02d", h, m);
+            snprintf(msgBuf, sizeof(msgBuf), "Alarm set to %02d:%02d", h, m);
             Serial.println(msgBuf);
         } else {
-            Serial.println("Ungueltige Uhrzeit. Nutze ALARM HH:MM (z.B. ALARM 07:30)");
+            Serial.println("Invalid time format. Use ALARM HH:MM (e.g., ALARM 07:30)");
         }
     } else if (input == "STOP") {
         alarmController.dismissRinging(radio);
         renderHeaderStatus(radio.getFrequency(), radio.isMuted());
-        Serial.println("Aktiver Alarm gestoppt (Wecker bleibt fuer morgen aktiviert).");
+        Serial.println("Active alarm stopped (remains armed for tomorrow).");
     } else if (input == "SNOOZE") {
         const DateTime now = clockManager.now(currentMillis);
         if (alarmController.snooze(radio, now, kDefaultSnoozeMinutes)) {
             renderHeaderStatus(radio.getFrequency(), radio.isMuted());
-            Serial.print("Snooze aktiviert fuer ");
+            Serial.print("Snooze activated for ");
             Serial.print(kDefaultSnoozeMinutes);
-            Serial.println(" Minuten.");
+            Serial.println(" minutes.");
         } else {
-            Serial.println("Snooze nicht moeglich: Alarm klingelt aktuell nicht.");
+            Serial.println("Cannot snooze: alarm is not currently ringing.");
         }
     } else if (input.startsWith("SET TIME ")) {
         const String timeArg = input.substring(9);
@@ -119,19 +119,19 @@ void executeSerialCommand(
         if (parseTimeComponents(timeArg, h, m, s) &&
             clockManager.setTime(static_cast<uint8_t>(h), static_cast<uint8_t>(m), static_cast<uint8_t>(s), currentMillis)) {
             char msgBuf[64];
-            snprintf(msgBuf, sizeof(msgBuf), "System- & RTC-Uhrzeit gesetzt auf %02d:%02d:%02d", h, m, s);
+            snprintf(msgBuf, sizeof(msgBuf), "System & RTC time updated to %02d:%02d:%02d", h, m, s);
             Serial.println(msgBuf);
         } else {
-            Serial.println("Ungueltiges Zeitformat. Nutze SET TIME HH:MM oder SET TIME HH:MM:SS");
+            Serial.println("Invalid time format. Use SET TIME HH:MM or SET TIME HH:MM:SS");
         }
     } else if (input == "RADIO ON") {
         radio.setMute(false);
         renderHeaderStatus(radio.getFrequency(), radio.isMuted());
-        Serial.println("Radio eingeschaltet (Unmuted).");
+        Serial.println("FM radio unmuted (Audio ON).");
     } else if (input == "RADIO OFF" || input == "MUTE") {
         radio.setMute(true);
         renderHeaderStatus(radio.getFrequency(), radio.isMuted());
-        Serial.println("Radio stummgeschaltet (Muted).");
+        Serial.println("FM radio muted (Audio OFF).");
     } else if (input.startsWith("FREQ ")) {
         const String freqArg = input.substring(5);
         char *endPtr = nullptr;
@@ -139,31 +139,31 @@ void executeSerialCommand(
         if (endPtr != freqArg.c_str() && *endPtr == '\0' && freq >= kMinRadioFreqMhz && freq <= kMaxRadioFreqMhz) {
             radio.setFrequency(freq);
             renderHeaderStatus(radio.getFrequency(), radio.isMuted());
-            Serial.print("Frequenz eingestellt auf ");
+            Serial.print("Tuned FM frequency to ");
             Serial.print(radio.getFrequency(), 1);
             Serial.println(" MHz.");
         } else {
-            Serial.println("Ungueltige Frequenz. Erlaubter Bereich: 87.5 bis 108.0 MHz (z.B. FREQ 105.2)");
+            Serial.println("Invalid frequency. Allowed range: 87.5 to 108.0 MHz (e.g., FREQ 105.2)");
         }
     } else {
-        Serial.print("Unbekannter Befehl: '");
+        Serial.print("Unknown command: '");
         Serial.print(input);
-        Serial.println("'. Tippe HELP fuer eine Befehlsuebersicht.");
+        Serial.println("'. Type HELP for a list of available commands.");
     }
 }
 } // namespace
 
 void printSerialCommandHelp() {
     Serial.println("=================================================");
-    Serial.println("VERFUEGBARE SERIELLE BEFEHLE:");
-    Serial.println("  ALARM HH:MM        -> Weckzeit setzen (z.B. ALARM 07:30)");
-    Serial.println("  ALARM OFF          -> Wecker komplett deaktivieren & Radio stumm");
-    Serial.println("  STOP               -> Klingelnden Alarm abschalten (bleibt aktiv)");
-    Serial.println("  SNOOZE             -> Klingelnden Alarm um 5 Min. verschieben");
-    Serial.println("  SET TIME HH:MM:SS  -> Uhrzeit manuell stellen (z.B. SET TIME 14:30:00)");
-    Serial.println("  RADIO ON / OFF     -> FM-Radio manuell ein-/ausschalten");
-    Serial.println("  FREQ <MHz>         -> UKW-Frequenz waehlen (87.5 - 108.0 MHz)");
-    Serial.println("  HELP               -> Diese Hilfe anzeigen");
+    Serial.println("AVAILABLE SERIAL COMMANDS:");
+    Serial.println("  ALARM HH:MM        -> Set daily wake-up time (e.g., ALARM 07:30)");
+    Serial.println("  ALARM OFF          -> Disable alarm completely & mute radio");
+    Serial.println("  STOP               -> Silence ringing alarm (stays armed for tomorrow)");
+    Serial.println("  SNOOZE             -> Snooze ringing alarm for 5 minutes");
+    Serial.println("  SET TIME HH:MM:SS  -> Set clock time manually (e.g., SET TIME 14:30:00)");
+    Serial.println("  RADIO ON / OFF     -> Manually unmute / mute FM radio");
+    Serial.println("  FREQ <MHz>         -> Tune FM frequency (87.5 - 108.0 MHz)");
+    Serial.println("  HELP               -> Display this command reference");
     Serial.println("=================================================");
 }
 
@@ -178,7 +178,7 @@ void processSerialInput(
 
         if (c == '\n' || c == '\r') {
             if (gLineOverflowed) {
-                Serial.println("FEHLER: Eingabezeile zu lang (max. 63 Zeichen). Befehl verworfen.");
+                Serial.println("ERROR: Command line too long (max 63 chars). Input discarded.");
                 gLineOverflowed = false;
                 gSerialBufIdx = 0U;
                 continue;

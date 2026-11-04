@@ -1,6 +1,6 @@
 /**
  * @file main.cpp
- * @brief Main application entry point for the Multifunktionaler Radiowecker firmware.
+ * @brief Main application entry point for the Multifunctional Radio Alarm Clock firmware.
  *
  * Coordinates hardware initialization (`setup()`) and non-blocking cooperative
  * scheduling (`loop()`) across all functional domain modules:
@@ -35,33 +35,33 @@ void setup() {
     Serial.begin(kSerialBaudRate);
     delay(1000);
     Serial.println("=================================================");
-    Serial.println("Multifunktionaler Radiowecker - Systemstart");
+    Serial.println("Multifunctional Radio Alarm Clock - Booting");
     Serial.println("=================================================");
 
-    // 1. Diagnostischer I2C-Bus-Scan (prüft TEA5767 @ 0x60 und DS1307 @ 0x68)
+    // 1. Diagnostic I2C bus scan (verifies TEA5767 @ 0x60 and DS1307 @ 0x68)
     performI2cDiagnosticScan();
 
-    // 2. FM-Radio (TEA5767) initialisieren (startet stummgeschaltet auf 105.2 MHz)
-    Serial.println("Initialisiere TEA5767 FM-Radio...");
+    // 2. Initialize FM Radio (TEA5767 starts muted at 105.2 MHz)
+    Serial.println("Initializing TEA5767 FM Radio...");
     gRadio.begin();
 
-    // 3. Echtzeituhr (DS1307) und driftfreie Zeitbasis initialisieren
+    // 3. Initialize Real-Time Clock (DS1307) and drift-free time baseline
     (void)gClockManager.begin(millis());
 
-    // 4. TFT-Display (ILI9341) initialisieren und statisches Layout zeichnen
+    // 4. Initialize TFT Display (ILI9341) and draw static UI frame
     (void)initDisplayUi(gRadio.getFrequency());
-    renderNowPlaying("bigFM (105.2 MHz)", "Warte auf Virtual RDS...");
+    renderNowPlaying("bigFM (105.2 MHz)", "Waiting for Virtual RDS...");
 
-    // 5. Dynamische WLAN-Verbindung für Virtual RDS aufbauen
+    // 5. Connect to Wi-Fi dynamically for live Virtual RDS updates
     if (!connectToWifiDynamic()) {
-        Serial.println("Start im Offline-Modus: Virtual RDS bleibt deaktiviert, bis WLAN verfuegbar ist.");
-        renderNowPlaying("Offline-Modus", "UKW-Radio bereit (105.2 MHz)");
+        Serial.println("Continuing in offline mode: Virtual RDS disabled until Wi-Fi is available.");
+        renderNowPlaying("Offline Mode", "FM Radio Ready (105.2 MHz)");
     } else {
         fetchVirtualRDS();
         gLastRdsFetchMs = millis();
     }
 
-    // Initiales Rendern der Uhrzeit
+    // Initial clock footer render
     const unsigned long bootNow = millis();
     gLastClockUpdateMs = bootNow;
     char timeStr[16];
@@ -71,39 +71,39 @@ void setup() {
     renderClock(timeStr, alarmStr);
 
     Serial.println("=================================================");
-    Serial.println("SYSTEM BEREIT.");
-    Serial.println("WICHTIG: Stelle den Seriellen Monitor auf 'Zeilenumbruch' (Newline / LF) ein!");
+    Serial.println("SYSTEM READY.");
+    Serial.println("IMPORTANT: Configure your Serial Monitor line ending to 'Newline (LF)'!");
     printSerialCommandHelp();
 }
 
 void loop() {
     const unsigned long now = millis();
 
-    // 1. Serielle Benutzereingaben nicht-blockierend auswerten
+    // 1. Poll and dispatch incoming USB-Serial commands non-blockingly
     processSerialInput(gClockManager, gAlarmController, gRadio, now);
 
-    // 2. Virtual RDS über HTTPS alle 15 Sekunden aktualisieren
+    // 2. Poll live Virtual RDS metadata over HTTPS every 15 seconds
     if ((now - gLastRdsFetchMs) >= kRdsFetchIntervalMs) {
         gLastRdsFetchMs = now;
         fetchVirtualRDS();
     }
 
-    // 3. Uhrzeit, Alarmlogik und Footer-UI im Sekundentakt aktualisieren
+    // 3. Update clock, evaluate alarm state machine, and refresh footer UI at 1 Hz
     const unsigned long updatedNow = millis();
     if ((updatedNow - gLastClockUpdateMs) >= kClockUpdateIntervalMs) {
         gLastClockUpdateMs = updatedNow;
 
-        // Stündliche RTC-Resynchronisation prüfen
+        // Check hourly hardware RTC synchronization
         gClockManager.update(updatedNow);
 
         const DateTime currentRealTime = gClockManager.now(updatedNow);
 
-        // Alarm-Zustandsautomat auswerten
+        // Evaluate alarm trigger and snooze conditions
         if (gAlarmController.update(currentRealTime, gRadio)) {
             renderHeaderStatus(gRadio.getFrequency(), gRadio.isMuted());
         }
 
-        // Uhrzeit und Alarmstatus flackerfrei auf dem TFT ausgeben
+        // Render time and alarm state flicker-free on the TFT footer
         char timeStr[16];
         char alarmStr[16];
         gClockManager.formatTime(updatedNow, timeStr, sizeof(timeStr));

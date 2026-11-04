@@ -39,7 +39,7 @@ void AlarmController::dismissRinging(RadioTEA5767 &radio) {
         radio.setMute(true);
         if (alarmHour_ >= 0 && alarmMinute_ >= 0) {
             state_ = AlarmState::ARMED;
-            triggeredThisMinute_ = true; // Verhindert erneutes Auslösen in derselben Minute
+            triggeredThisMinute_ = true; // Prevent re-triggering within the same minute
         } else {
             state_ = AlarmState::DISABLED;
         }
@@ -66,7 +66,7 @@ bool AlarmController::update(const DateTime &currentTime, RadioTEA5767 &radio) {
     const int currentHour = static_cast<int>(currentTime.hour());
     const int currentMin  = static_cast<int>(currentTime.minute());
 
-    // Sobald die Alarm-Minute verstrichen ist, Trigger-Sperre für den nächsten Tag zurücksetzen
+    // Once the alarm minute rolls over, clear the latch so the alarm repeats the next day
     if (currentHour != alarmHour_ || currentMin != alarmMinute_) {
         triggeredThisMinute_ = false;
     }
@@ -75,14 +75,14 @@ bool AlarmController::update(const DateTime &currentTime, RadioTEA5767 &radio) {
         if (!triggeredThisMinute_ && currentHour == alarmHour_ && currentMin == alarmMinute_) {
             triggeredThisMinute_ = true;
             state_ = AlarmState::RINGING;
-            Serial.println("ALARM! Radio wird eingeschaltet.");
+            Serial.println("ALARM TRIGGERED! Unmuting FM radio.");
             radio.setMute(false);
             return true;
         }
     } else if (state_ == AlarmState::SNOOZED) {
         if (currentTime.unixtime() >= snoozeUntilTime_.unixtime()) {
             state_ = AlarmState::RINGING;
-            Serial.println("SNOOZE BEENDET! Radio wird wieder eingeschaltet.");
+            Serial.println("SNOOZE EXPIRED! Unmuting FM radio.");
             radio.setMute(false);
             return true;
         }
@@ -104,7 +104,7 @@ void AlarmController::formatAlarmText(char *buffer, size_t bufferSize) const {
             snprintf(buffer, bufferSize, "%02d:%02d", alarmHour_, alarmMinute_);
             break;
         case AlarmState::RINGING:
-            snprintf(buffer, bufferSize, "AKTIV!");
+            snprintf(buffer, bufferSize, "RING!");
             break;
         case AlarmState::SNOOZED:
             snprintf(

@@ -17,7 +17,7 @@ bool ClockManager::begin(unsigned long currentMillis) {
     baseSyncMillis_ = currentMillis;
 
     if (!rtc_.begin(&Wire)) {
-        Serial.println("WARNUNG: Hardware-RTC (DS1307) nicht gefunden! Nutze Software-Uhr (Kompilierzeit).");
+        Serial.println("WARNING: Hardware RTC (DS1307) not found! Falling back to software clock (compile time).");
         rtcHardwarePresent_ = false;
         baseRtcTime_ = DateTime(F(__DATE__), F(__TIME__));
         return false;
@@ -25,23 +25,23 @@ bool ClockManager::begin(unsigned long currentMillis) {
 
     rtcHardwarePresent_ = true;
     if (!rtc_.isrunning()) {
-        Serial.println("RTC lief nicht! Initialisiere mit Kompilierzeit...");
+        Serial.println("RTC was not running! Initializing with compile timestamp...");
         rtc_.adjust(DateTime(F(__DATE__), F(__TIME__)));
     }
 
     baseRtcTime_ = rtc_.now();
-    Serial.println("RTC (DS1307) erfolgreich initialisiert.");
+    Serial.println("RTC (DS1307) initialized successfully.");
     return true;
 }
 
 void ClockManager::update(unsigned long currentMillis) {
     if ((currentMillis - baseSyncMillis_) >= kRtcSyncIntervalMs) {
         if (rtcHardwarePresent_) {
-            // Einmal pro Stunde mit der Hardware-RTC synchronisieren
+            // Re-synchronize with physical DS1307 hardware once per hour
             baseRtcTime_ = rtc_.now();
             baseSyncMillis_ = currentMillis;
         } else {
-            // Im Software-Fallback die Referenzzeit fortschreiben, um Überläufe zu vermeiden
+            // Roll software baseline forward to prevent 32-bit delta overflow
             baseRtcTime_ = now(currentMillis);
             baseSyncMillis_ = currentMillis;
         }

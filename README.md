@@ -1,4 +1,4 @@
-# Multifunktionaler Radiowecker
+# Multifunctional FM Radio Alarm Clock with Virtual RDS
 
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-success?style=flat-square)]()
 [![Language](https://img.shields.io/badge/Language-C%2B%2B17-00599C?style=flat-square&logo=c%2B%2B)]()
@@ -7,44 +7,44 @@
 [![Build](https://img.shields.io/badge/Build-PlatformIO-FF7F00?style=flat-square&logo=platformio)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
-Ein eingebettetes C++-Softwaresystem für einen **Multifunktionalen UKW-Radiowecker mit Live-Virtual-RDS** auf Basis des **Arduino UNO R4 WiFi** (Renesas RA4M1 ARM Cortex-M4 & ESP32-S3 Coprozessor). Das System kombiniert klassischen analogen UKW-Rundfunkempfang (`TEA5767`), eine batteriegepufferte Echtzeituhr (`DS1307`), ein schnelles 8-Bit-Parallel-TFT-Farbdisplay (`ILI9341`, 320×240) sowie eine cloudgestützte **Virtual-RDS-Engine**, die Live-Titelinformationen (Artist & Song) über HTTPS/JSONP abruft.
+An embedded C++17 firmware architecture for a **Multifunctional FM Radio Alarm Clock** featuring cloud-assisted **Live Virtual RDS**, built for the **Arduino UNO R4 WiFi** (Renesas RA4M1 ARM Cortex-M4 + onboard ESP32-S3 coprocessor). The system integrates an analog FM stereo receiver (`TEA5767`), a battery-backed real-time clock (`DS1307`), an 8-bit parallel 320×240 color TFT display (`ILI9341`), and an HTTPS/JSONP client that fetches real-time "Now Playing" artist and track metadata over Wi-Fi.
 
 ---
 
-## Inhaltsverzeichnis / Table of Contents
-1. [Überblick & Hauptfunktionen (Key Features)](#1-überblick--hauptfunktionen-key-features)
-2. [Systemarchitektur & Zustandsautomat (Mermaid Diagrams)](#2-systemarchitektur--zustandsautomat-mermaid-diagrams)
-3. [Hardware & Pinbelegung (Pinout Table)](#3-hardware--pinbelegung-pinout-table)
-4. [Projektstruktur (Repository Structure)](#4-projektstruktur-repository-structure)
-5. [Kompilieren & Flashen (Build & Flash Instructions)](#5-kompilieren--flashen-build--flash-instructions)
-6. [Serielle Steuerung (CLI-Befehlsreferenz)](#6-serielle-steuerung-cli-befehlsreferenz)
+## Table of Contents
+1. [Overview & Key Features](#1-overview--key-features)
+2. [System Architecture & State Machine (Mermaid Diagrams)](#2-system-architecture--state-machine-mermaid-diagrams)
+3. [Hardware & Pinout Table](#3-hardware--pinout-table)
+4. [Repository Structure](#4-repository-structure)
+5. [Build & Flash Instructions](#5-build--flash-instructions)
+6. [Serial CLI Command Reference](#6-serial-cli-command-reference)
 
 ---
 
-## 1. Überblick & Hauptfunktionen (Key Features)
+## 1. Overview & Key Features
 
-- **Driftfreie Echtzeituhr mit Audio-Entstörung (`ClockManager`):**
-  - Kombiniert die batteriegepufferte Hardware-RTC (`Maxim DS1307`) mit einer `millis()`-basierten lokalen Delta-Interpolation.
-  - Verhindert das typische sekündliche I2C-Übersprechen („Audio-Poppen“) auf den analogen Ausgang des `TEA5767`, indem der I2C-Bus nur einmal pro Stunde mit der Hardware-RTC resynchronisiert wird, während die Uhrzeit selbst bei mehrsekündigen TLS-Handshakes sekundengenau weiterläuft.
-- **Zustandsbasierte Wecker- & Snooze-Steuerung (`AlarmController`):**
-  - Vollständiger endlicher Zustandsautomat (`DISABLED`, `ARMED`, `RINGING`, `SNOOZED`).
-  - Unterstützt tägliche Weckwiederholung, manuelles Abschalten (`STOP`), komplettes Deaktivieren (`ALARM OFF`) sowie eine **5-Minuten-Schlummerfunktion (`SNOOZE`)**.
-- **UKW-Stereotuner-Treiber (`RadioTEA5767`):**
-  - Direkte 5-Byte-Registerprogrammierung über I2C (`0x60`) mit gerundeter 14-Bit-High-Side-Injection-PLL-Berechnung, Frequenzbandbegrenzung (`87.5–108.0 MHz`), High-Cut-Control (`HCC`), Stereo-Noise-Cancelling (`SNC`) und Hardware-Mute.
-- **Live Virtual RDS über HTTPS (`NetworkController`):**
-  - Dynamischer WLAN-Scanner und interaktive WPA2-Authentifizierung beim Systemstart (mit automatischem 30s-Offline-Fallback).
-  - Ruft alle 15 Sekunden über `WiFiSSLClient` (TLS 1.2/1.3 auf dem ESP32-S3) die Live-On-Air-Metadaten von **bigFM** (`core-search.radioplayer.cloud`) ab und filtert den JSONP-Stream speicherschonend mittels `ArduinoJson` v7 Filter-Projektion.
-- **Flackerfreie 3-Zonen-TFT-Benutzeroberfläche (`DisplayUI`):**
-  - Ansteuerung eines 320×240 Pixel `ILI9341` Displays über einen 8-Bit-Parallelbus (`Arduino_SWPAR8`).
-  - Strikt getrennte Viewports für **Header-Banner** (Sender, Frequenz & Mute-Status), **Now-Playing-Bereich** (Artist & Song mit Redraw-Caching) und **Uhren-/Alarm-Footer** (flackerfreies 1-Hz-Rendering ohne Full-Rect-Löschung).
-- **Nicht-blockierendes USB-Serial-CLI (`InputHandler`):**
-  - Robuste Befehlseingabe im laufenden Betrieb mit strikter Eingabevalidierung und Pufferüberlaufschutz.
+- **Drift-Free Real-Time Clock with I2C Audio Isolation (`ClockManager`):**
+  - Combines the battery-backed hardware RTC (`Maxim DS1307`) with `millis()` delta time interpolation.
+  - Eliminates the 1 Hz I2C bus crosstalk ("audio popping") on the shared `TEA5767` analog audio stage by querying the physical I2C RTC only once per hour while maintaining exact second-by-second accuracy—even across multi-second blocking TLS handshakes.
+- **Finite State Machine Alarm & Snooze Controller (`AlarmController`):**
+  - Deterministic 4-state alarm state machine (`DISABLED`, `ARMED`, `RINGING`, `SNOOZED`).
+  - Supports daily auto-rearming, manual alarm dismissal (`STOP`), full deactivation (`ALARM OFF`), and a **5-minute snooze timer (`SNOOZE`)**.
+- **FM Stereo Tuner Driver (`RadioTEA5767`):**
+  - Direct 5-byte I2C register control (`0x60`) implementing rounded 14-bit high-side injection PLL synthesis, FM broadcast band clamping (`87.5–108.0 MHz`), High Cut Control (`HCC`), Stereo Noise Cancelling (`SNC`), and hardware mute.
+- **Live Virtual RDS over HTTPS (`NetworkController`):**
+  - Dynamic Wi-Fi network scanner and interactive WPA2 provisioning on boot (with an automatic 30-second offline fallback).
+  - Polls live station metadata (`core-search.radioplayer.cloud`) every 15 seconds over TLS (`WiFiSSLClient` on the ESP32-S3) and parses the JSONP stream in-place using `ArduinoJson` v7 filter projection to stay well within the RA4M1's 32 KB SRAM budget.
+- **Flicker-Free 3-Zone TFT User Interface (`DisplayUI`):**
+  - Drives a 320×240 `ILI9341` color TFT over an 8-bit parallel data bus (`Arduino_SWPAR8`).
+  - Strictly partitioned viewports for the **Header Banner** (station name, tuned frequency, mute indicator), **Now Playing Body** (Artist & Song with change-detection caching), and **Clock/Alarm Footer** (flicker-free 1 Hz opaque glyph rendering).
+- **Non-Blocking USB-Serial CLI (`InputHandler`):**
+  - Runtime command parser with strict numeric validation and line-overflow protection.
 
 ---
 
-## 2. Systemarchitektur & Zustandsautomat (Mermaid Diagrams)
+## 2. System Architecture & State Machine (Mermaid Diagrams)
 
-### 2.1 Modulare Softwarearchitektur
+### 2.1 Modular Software Architecture
 
 ```mermaid
 flowchart TD
@@ -91,7 +91,7 @@ flowchart TD
     UI -.-> TFT
 ```
 
-### 2.2 Zustandsautomat (Device & Alarm State Machine)
+### 2.2 Device & Alarm State Machine
 
 ```mermaid
 stateDiagram-v2
@@ -104,137 +104,137 @@ stateDiagram-v2
         WiFi_Scan_Prompt --> Offline_Ready: 30s Timeout / Skip
     }
 
-    Boot_Init --> Clock_Idle_Disabled: Setup abgeschlossen (Radio Muted)
+    Boot_Init --> Clock_Idle_Disabled: Setup Complete (Radio Muted)
 
-    state "Normalbetrieb & Wecker-FSM" as Runtime {
+    state "Runtime & Alarm FSM" as Runtime {
         Clock_Idle_Disabled: IDLE / CLOCK MODE\n(Alarm: DISABLED)
-        Alarm_Armed: ALARM ARMED\n(Warte auf HH:MM)
-        Alarm_Ringing: ALARM RINGING\n(TEA5767 Unmuted / Audio Aktiv)
+        Alarm_Armed: ALARM ARMED\n(Waiting for HH:MM)
+        Alarm_Ringing: ALARM RINGING\n(TEA5767 Unmuted / Audio Active)
         Alarm_Snoozed: SNOOZE ACTIVE\n(Radio Muted, +5 Min Timer)
         Manual_Radio: MANUAL RADIO MODE\n(RADIO ON / FREQ MHz)
 
-        Clock_Idle_Disabled --> Alarm_Armed: Befehl "ALARM HH:MM"
-        Alarm_Armed --> Clock_Idle_Disabled: Befehl "ALARM OFF"
-        Alarm_Armed --> Alarm_Ringing: Uhrzeit == HH:MM
+        Clock_Idle_Disabled --> Alarm_Armed: Command "ALARM HH:MM"
+        Alarm_Armed --> Clock_Idle_Disabled: Command "ALARM OFF"
+        Alarm_Armed --> Alarm_Ringing: Current Time == HH:MM
 
-        Alarm_Ringing --> Alarm_Snoozed: Befehl "SNOOZE"
-        Alarm_Snoozed --> Alarm_Ringing: Snooze-Timer (+5 Min) abgelaufen
-        Alarm_Snoozed --> Alarm_Armed: Befehl "STOP"
-        Alarm_Snoozed --> Clock_Idle_Disabled: Befehl "ALARM OFF"
+        Alarm_Ringing --> Alarm_Snoozed: Command "SNOOZE"
+        Alarm_Snoozed --> Alarm_Ringing: Snooze Timer (+5 Min) Expired
+        Alarm_Snoozed --> Alarm_Armed: Command "STOP"
+        Alarm_Snoozed --> Clock_Idle_Disabled: Command "ALARM OFF"
 
-        Alarm_Ringing --> Alarm_Armed: Befehl "STOP" (Für morgen scharf)
-        Alarm_Ringing --> Clock_Idle_Disabled: Befehl "ALARM OFF"
+        Alarm_Ringing --> Alarm_Armed: Command "STOP" (Remains Armed for Next Day)
+        Alarm_Ringing --> Clock_Idle_Disabled: Command "ALARM OFF"
 
-        Clock_Idle_Disabled --> Manual_Radio: Befehl "RADIO ON"
-        Manual_Radio --> Clock_Idle_Disabled: Befehl "RADIO OFF" / "MUTE"
+        Clock_Idle_Disabled --> Manual_Radio: Command "RADIO ON"
+        Manual_Radio --> Clock_Idle_Disabled: Command "RADIO OFF" / "MUTE"
     }
 ```
 
 ---
 
-## 3. Hardware & Pinbelegung (Pinout Table)
+## 3. Hardware & Pinout Table
 
 | Component | Pin / Bus | Function | Notes |
 | :--- | :--- | :--- | :--- |
 | **ILI9341 TFT Display** | `A0` (`LCD_RD`) | 8-Bit Parallel Read Strobe | Active Low |
 | **ILI9341 TFT Display** | `A1` (`LCD_WR`) | 8-Bit Parallel Write Strobe | Active Low |
-| **ILI9341 TFT Display** | `A2` (`LCD_RS` / `DC`) | Data / Command Select | Registerauswahl |
+| **ILI9341 TFT Display** | `A2` (`LCD_RS` / `DC`) | Data / Command Select | Register Select |
 | **ILI9341 TFT Display** | `A3` (`LCD_CS`) | Chip Select | Active Low |
 | **ILI9341 TFT Display** | `D10` (`LCD_RST`) | Hardware Reset | Active Low |
-| **ILI9341 TFT Display** | `D8`, `D9`, `D2`–`D7` | 8-Bit Parallel Data (`D0`–`D7`) | `Arduino_SWPAR8` Datenbus |
-| **TEA5767 FM Radio** | `A4` (`SDA`), `A5` (`SCL`) | Primärer I2C-Bus (`Wire`, `0x60`) | UKW-Tuner (87.5–108.0 MHz, 3.3V/5V) |
-| **DS1307 RTC Modul** | `A4` (`SDA`), `A5` (`SCL`) | Primärer I2C-Bus (`Wire`, `0x68`) | Echtzeituhr mit CR2032-Pufferbatterie |
-| **ESP32-S3 Wi-Fi** | Interner UART-Bus | `WiFiS3` Netzwerk-Coprozessor | HTTPS/TLS 1.2+ für Virtual RDS |
-| **Serielles Terminal** | `USB-C` (`D0`/`D1`) | `Serial` @ `115200` Baud | Zeilenumbruch auf `LF` (Newline) stellen |
+| **ILI9341 TFT Display** | `D8`, `D9`, `D2`–`D7` | 8-Bit Parallel Data (`D0`–`D7`) | `Arduino_SWPAR8` data bus |
+| **TEA5767 FM Radio** | `A4` (`SDA`), `A5` (`SCL`) | Primary I2C Bus (`Wire`, `0x60`) | FM stereo tuner (87.5–108.0 MHz) |
+| **DS1307 RTC Module** | `A4` (`SDA`), `A5` (`SCL`) | Primary I2C Bus (`Wire`, `0x68`) | Real-time clock with CR2032 backup |
+| **ESP32-S3 Wi-Fi** | Internal UART Bridge | `WiFiS3` Network Coprocessor | HTTPS/TLS 1.2+ socket offload |
+| **Serial Terminal** | `USB-C` (`D0`/`D1`) | `Serial` @ `115200` Baud | Set line ending to `Newline (LF)` |
 
 ---
 
-## 4. Projektstruktur (Repository Structure)
+## 4. Repository Structure
 
 ```text
 multifunktionaler-radiowecker/
 ├── docs/
-│   ├── ARCHITECTURE.md          # Detaillierte Architektur- & Pinout-Dokumentation
-│   └── CODE_AUDIT.md            # Technischer Code-Audit-Bericht & Fehleranalyse
+│   ├── ARCHITECTURE.md          # Detailed system architecture & hardware pinout reference
+│   └── CODE_AUDIT.md            # Technical feasibility audit & bug resolution report
 ├── include/
-│   ├── alarm_controller.h       # Deklaration des Wecker- & Snooze-Zustandsautomaten
-│   ├── clock_manager.h          # Deklaration der DS1307-RTC & driftfreien Zeitinterpolation
-│   ├── config.h                 # Zentrale Hardware-Pins, Timing-, Netzwerk- & UI-Konstanten
-│   ├── display_ui.h             # Schnittstelle für das 3-Zonen-TFT-User-Interface
-│   ├── input_handler.h          # Schnittstelle für den nicht-blockierenden Serial-CLI-Parser
-│   ├── network_controller.h     # Schnittstelle für WLAN-Setup & HTTPS Virtual RDS
-│   └── radio_module.h           # Klassen-Interface für den TEA5767 I2C-UKW-Tuner
+│   ├── alarm_controller.h       # Daily alarm & snooze finite state machine interface
+│   ├── clock_manager.h          # DS1307 RTC driver wrapper & drift-free time interpolation
+│   ├── config.h                 # Central hardware pins, timing, network & UI constants
+│   ├── display_ui.h             # 3-zone ILI9341 TFT graphical user interface declarations
+│   ├── input_handler.h          # Non-blocking Serial CLI parser & command dispatcher
+│   ├── network_controller.h     # Dynamic Wi-Fi provisioning & HTTPS Virtual RDS interface
+│   └── radio_module.h           # TEA5767 I2C FM stereo tuner class interface
 ├── src/
-│   ├── alarm_controller.cpp     # Implementierung der Alarmlogik & Snooze-Timer
-│   ├── clock_manager.cpp        # Implementierung der RTC-Synchronisation & Zeitberechnung
-│   ├── display_ui.cpp           # ILI9341 Grafik-Rendering über 8-Bit-Parallelbus
-│   ├── input_handler.cpp        # Parser & Dispatcher für serielle Benutzerbefehle
-│   ├── main.cpp                 # System-Einstiegspunkt (setup & kooperative loop)
-│   ├── network_controller.cpp   # WLAN-Verbindungsaufbau & JSONP-Stream-Deserialisierung
-│   └── radio_module.cpp         # TEA5767 PLL-Berechnung, I2C-Transfer & Bus-Scanner
+│   ├── alarm_controller.cpp     # Alarm state transitions & snooze timer implementation
+│   ├── clock_manager.cpp        # RTC synchronization & millis() delta time calculation
+│   ├── display_ui.cpp           # ILI9341 rendering via 8-bit software parallel bus
+│   ├── input_handler.cpp        # Serial CLI command parsing & validation logic
+│   ├── main.cpp                 # Application entry point (setup & cooperative loop)
+│   ├── network_controller.cpp   # WPA2 connection flow & JSONP stream deserialization
+│   └── radio_module.cpp         # TEA5767 PLL calculation, I2C transmission & bus scanner
 ├── legacy/
-│   ├── test_tea.py              # Historisches Hilfsskript zur Registeranalyse
-│   └── test_wire1.cpp           # Isolierter I2C-Test-Snippet außerhalb des Build-Baums
-├── lib/                         # Projektspezifische private Bibliotheken (PlatformIO)
-├── test/                        # Unit-Test-Verzeichnis (PlatformIO Test Runner)
-├── .gitignore                   # Git-Ausschlussregeln für Build-Artefakte & IDE-Dateien
-├── LICENSE                      # MIT Open-Source-Lizenz
-├── platformio.ini               # PlatformIO Build- & Dependency-Konfiguration
-└── README.md                    # Projektdokumentation
+│   ├── test_tea.py              # Archived register inspection helper script
+│   └── test_wire1.cpp           # Archived secondary I2C bus test snippet
+├── lib/                         # Project-specific private libraries (PlatformIO)
+├── test/                        # Unit test directory (PlatformIO Test Runner)
+├── .gitignore                   # Ignore rules for build artifacts, IDEs & OS files
+├── LICENSE                      # MIT Open-Source License
+├── platformio.ini               # PlatformIO build & library dependency configuration
+└── README.md                    # Project overview and documentation
 ```
 
 ---
 
-## 5. Kompilieren & Flashen (Build & Flash Instructions)
+## 5. Build & Flash Instructions
 
-### Voraussetzungen
-- [Visual Studio Code](https://code.visualstudio.com/) mit der [PlatformIO IDE Extension](https://platformio.org/install/ide?install=vscode) **oder** PlatformIO Core CLI (`pio`).
-- **Arduino UNO R4 WiFi** per USB-C-Kabel mit dem PC verbunden.
+### Prerequisites
+- [Visual Studio Code](https://code.visualstudio.com/) with the [PlatformIO IDE Extension](https://platformio.org/install/ide?install=vscode), **or** PlatformIO Core CLI (`pio`).
+- **Arduino UNO R4 WiFi** connected to your computer via USB-C.
 
-### Schritt-für-Schritt-Anleitung
+### Step-by-Step Guide
 
-1. **Repository klonen:**
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/xRyuks/multifunktionaler-radiowecker.git
    cd multifunktionaler-radiowecker
    ```
 
-2. **Abhängigkeiten installieren & Firmware kompilieren:**
-   PlatformIO lädt die in `platformio.ini` definierten Bibliotheken (`ArduinoJson`, `Arduino_GFX`, `RTClib`) sowie die `renesas-ra` Toolchain automatisch herunter:
+2. **Install dependencies & compile the firmware:**
+   PlatformIO automatically downloads the `renesas-ra` toolchain and required libraries (`ArduinoJson`, `Arduino_GFX`, `RTClib`) defined in `platformio.ini`:
    ```bash
    pio run
    ```
 
-3. **Firmware auf den Arduino UNO R4 WiFi flashen:**
+3. **Flash the firmware to the Arduino UNO R4 WiFi:**
    ```bash
    pio run --target upload
    ```
 
-4. **Seriellen Monitor öffnen (`115200` Baud):**
+4. **Open the Serial Monitor (`115200` baud):**
    ```bash
    pio device monitor -b 115200
    ```
-   > **Hinweis:** Beim ersten Start scannt der Radiowecker nach verfügbaren WLAN-Netzwerken. Wähle die Nummer deines Netzwerks im Seriellen Monitor aus und gib das WPA2-Passwort ein (oder warte 30 Sekunden für den automatischen Start im Offline-Modus).
+   > **Note:** On boot, the device scans for available 2.4 GHz Wi-Fi networks. Enter the index number of your network and your WPA2 password in the Serial Monitor (or wait 30 seconds to boot automatically into offline mode).
 
 ---
 
-## 6. Serielle Steuerung (CLI-Befehlsreferenz)
+## 6. Serial CLI Command Reference
 
-Stelle sicher, dass der Serielle Monitor auf **`115200` Baud** und Zeilenende **`Newline (LF)`** oder **`Both NL & CR`** eingestellt ist:
+Ensure your Serial Monitor is configured to **`115200` baud** with line endings set to **`Newline (LF)`** or **`Both NL & CR`**:
 
-| Befehl | Beispiel | Beschreibung |
+| Command | Example | Description |
 | :--- | :--- | :--- |
-| `ALARM HH:MM` | `ALARM 07:30` | Setzt und aktiviert die tägliche Weckzeit im 24-Stunden-Format. |
-| `ALARM OFF` | `ALARM OFF` | Deaktiviert den Wecker vollständig und schaltet das Radio sofort stumm. |
-| `STOP` | `STOP` | Schaltet den aktuell klingelnden Alarm stumm (Wecker bleibt für den Folgetag aktiv). |
-| `SNOOZE` | `SNOOZE` | Schaltet das Radio stumm und weckt erneut nach **5 Minuten**. |
-| `SET TIME HH:MM:SS` | `SET TIME 14:30:00` | Stellt die aktuelle Uhrzeit (Software-Uhr & DS1307 Hardware-RTC). |
-| `RADIO ON` | `RADIO ON` | Schaltet den UKW-Tuner manuell laut (Unmute). |
-| `RADIO OFF` | `RADIO OFF` | Schaltet den UKW-Tuner manuell stumm (Mute). |
-| `FREQ <MHz>` | `FREQ 105.2` | Stellt die Empfangsfrequenz im Bereich `87.5` bis `108.0 MHz` ein. |
-| `HELP` | `HELP` | Gibt eine Übersicht aller Befehle im Seriellen Monitor aus. |
+| `ALARM HH:MM` | `ALARM 07:30` | Sets and arms the daily wake-up alarm in 24-hour format. |
+| `ALARM OFF` | `ALARM OFF` | Completely disables the alarm and immediately mutes the radio. |
+| `STOP` | `STOP` | Silences a currently ringing alarm while keeping it armed for the next day. |
+| `SNOOZE` | `SNOOZE` | Mutes a ringing alarm and re-triggers it after **5 minutes**. |
+| `SET TIME HH:MM:SS` | `SET TIME 14:30:00` | Sets the current time on both the software clock and DS1307 hardware RTC. |
+| `RADIO ON` | `RADIO ON` | Manually unmutes the TEA5767 FM receiver. |
+| `RADIO OFF` | `RADIO OFF` | Manually mutes the TEA5767 FM receiver. |
+| `FREQ <MHz>` | `FREQ 105.2` | Tunes the FM receiver to a frequency between `87.5` and `108.0 MHz`. |
+| `HELP` | `HELP` | Prints the list of available serial commands. |
 
 ---
 
-## Lizenz (License)
-Dieses Projekt ist unter der **MIT-Lizenz** lizenziert – siehe [LICENSE](LICENSE) für weitere Details.
+## License
+Distributed under the **MIT License**. See [LICENSE](LICENSE) for full license text.
